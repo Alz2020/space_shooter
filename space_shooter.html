@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Space Shooter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="score">Score: 0</div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="controls">Controls: Arrow Keys to move, Space to shoot, 1-3 to change weapons</div>
+        <h2>Game Architecture</h2>
+        <div class="mermaid">
+            classDiagram
+                class GameObject {
+                    #x: number
+                    #y: number
+                    +width: number
+                    +height: number
+                    +active: boolean
+                    +draw(ctx)*
+                    +update()
+                }
+                class Player {
+                    -bullets: Bullet[]
+                    -weapon: WeaponStrategy
+                    +speed: number
+                    +setWeapon(strategy)
+                }
+                class Bullet {
+                    +vx: number
+                    +vy: number
+                }
+                class Enemy {
+                    +speed: number
+                }
+                class WeaponStrategy {
+                    -fireRate: number
+                    -lastShot: number
+                    +shoot(x, y, bullets, timestamp): boolean*
+                }
+                class SingleShot
+                class SpreadShot
+                class RapidFire
+                class ScoreSubject {
+                    -observers: ScoreObserver[]
+                    -score: number
+                    +addObserver(observer)
+                    +addPoints(points)
+                    +notify()
+                }
+                class ScoreObserver {
+                    +update(score)*
+                }
+                class ScoreDisplay {
+                    -element: HTMLElement
+                }
+                class SpaceShooter {
+                    -canvas: HTMLCanvasElement
+                    -ctx: CanvasRenderingContext2D
+                    -player: Player
+                    -enemies: Enemy[]
+                    -scoreSubject: ScoreSubject
+                    -keys: Map
+                    +start()
+                }
+                GameObject <|-- Player
+                GameObject <|-- Bullet
+                GameObject <|-- Enemy
+                WeaponStrategy <|-- SingleShot
+                WeaponStrategy <|-- SpreadShot
+                WeaponStrategy <|-- RapidFire
+                Player o--> WeaponStrategy
+                Player o--> Bullet
+                SpaceShooter o--> Player
+                SpaceShooter o--> Enemy
+                SpaceShooter o--> ScoreSubject
+                ScoreSubject o--> ScoreObserver
+                ScoreObserver <|-- ScoreDisplay
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <script>
+        try {
+            mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+        } catch (e) {
+            console.warn('Mermaid initialization failed:', e);
+            const mermaidDiv = document.querySelector('.mermaid');
+            if (mermaidDiv) {
+                mermaidDiv.textContent = 'UML Diagram could not be rendered. Please view source code for diagram details.';
+                mermaidDiv.style.color = 'red';
+            }
+        }
+    </script>
+<script>
+class WeaponStrategy {
+    constructor(fireRate = 500) {
+        this.fireRate = fireRate; 
+        this.lastShot = 0;
+    }
+    shoot(x, y, bullets, timestamp) {
+        throw new Error("Must implement shoot method");
+    }
+}
+class SingleShot extends WeaponStrategy {
+    shoot(x, y, bullets, timestamp) {
+        if (timestamp - this.lastShot >= this.fireRate) {
+            bullets.push(new Bullet(x, y, 0, -10));
+            this.lastShot = timestamp;
+            return true;
+        }
+        return false;
+    }
+}
+class SpreadShot extends WeaponStrategy {
+    shoot(x, y, bullets, timestamp) {
+        if (timestamp - this.lastShot >= this.fireRate) {
+            bullets.push(new Bullet(x, y, -2, -10));
+            bullets.push(new Bullet(x, y, 0, -10));
+            bullets.push(new Bullet(x, y, 2, -10));
+            this.lastShot = timestamp;
+            return true;
+        }
+        return false;
+    }
+}
+class RapidFire extends WeaponStrategy {
+    constructor() {
+        super(200); 
+    }
+    shoot(x, y, bullets, timestamp) {
+        if (timestamp - this.lastShot >= this.fireRate) {
+            bullets.push(new Bullet(x, y, 0, -12));
+            this.lastShot = timestamp;
+            return true;
+        }
+        return false;
+    }
+}
+class ScoreSubject {
+    constructor() {
+        this.observers = [];
+        this.score = 0;
+    }
+    addObserver(observer) {
+        this.observers.push(observer);
+    }
+    notify() {
+        this.observers.forEach(observer => observer.update(this.score));
+    }
+    addPoints(points) {
+        if (typeof points !== 'number') throw new Error('Points must be a number');
+        this.score += points;
+        this.notify();
+    }
+}
+class ScoreDisplay {
+    constructor(elementId) {
+        this.element = document.getElementById(elementId);
+        if (!this.element) throw new Error(`Element with ID ${elementId} not found`);
+    }
+    update(score) {
+        this.element.textContent = `Score: ${score}`;
+    }
+}
+class GameObject {
+    constructor(x, y, width, height) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.active = true;
+    }
+    draw(ctx) {
+        throw new Error("Must implement draw method");
+    }
+    update() {}
+}
+class Player extends GameObject {
+    constructor(x, y) {
+        super(x, y, 40, 40);
+        this.speed = 5;
+        this.bullets = [];
+        this.weapon = new SingleShot();
+    }
+    draw(ctx) {
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x - 20, this.y + 40);
+        ctx.lineTo(this.x + 20, this.y + 40);
+        ctx.fill();
+    }
+    setWeapon(strategy) {
+        if (!(strategy instanceof WeaponStrategy)) {
+            throw new Error('Invalid weapon strategy');
+        }
+        this.weapon = strategy;
+    }
+}
+class Bullet extends GameObject {
+    constructor(x, y, vx, vy) {
+        super(x, y, 5, 10);
+        this.vx = vx;
+        this.vy = vy;
+    }
+    draw(ctx) {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.y < -this.height || this.y > 600 || this.x < 0 || this.x > 800) {
+            this.active = false;
+        }
+    }
+}
+class Enemy extends GameObject {
+    constructor(x, y) {
+        super(x, y, 30, 30);
+        this.speed = 2 + Math.random() * 2;
+    }
+    draw(ctx) {
+        ctx.fillStyle = 'green';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+    update() {
+        this.y += this.speed;
+        if (this.y > 600 + this.height) this.active = false;
+    }
+}
+class SpaceShooter {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        if (!this.canvas) throw new Error('Canvas element not found');
+        this.ctx = this.canvas.getContext('2d');
+        if (!this.ctx) throw new Error('Failed to get 2D context');       
+        this.player = new Player(400, 500);
+        this.enemies = [];
+        this.scoreSubject = new ScoreSubject();
+        this.scoreSubject.addObserver(new ScoreDisplay('score'));
+        this.keys = new Map();
+        this.lastEnemySpawn = 0;
+        this.isRunning = false;
+        this.initControls();
+    }
+    initControls() {
+        window.addEventListener('keydown', (e) => {
+            this.keys.set(e.key, true);
+            e.preventDefault();
+        });
+        window.addEventListener('keyup', (e) => {
+            this.keys.set(e.key, false);
+            e.preventDefault();
+        });
+    }
+    spawnEnemy(timestamp) {
+        const spawnInterval = 1000 - Math.min(this.scoreSubject.score / 10, 900); 
+        if (timestamp - this.lastEnemySpawn > spawnInterval) {
+            this.enemies.push(new Enemy(Math.random() * (800 - 30), -30));
+            this.lastEnemySpawn = timestamp;
+        }
+    }
+    checkCollisions() {
+        this.player.bullets.forEach(bullet => {
+            this.enemies.forEach(enemy => {
+                if (bullet.active && enemy.active &&
+                    bullet.x < enemy.x + enemy.width &&
+                    bullet.x + bullet.width > enemy.x &&
+                    bullet.y < enemy.y + enemy.height &&
+                    bullet.y + bullet.height > enemy.y) {
+                    bullet.active = false;
+                    enemy.active = false;
+                    this.scoreSubject.addPoints(10);
+                }
+            });
+        });
+    }
+    update(timestamp) {
+        // Player movement
+        if (this.keys.get('ArrowLeft') && this.player.x > 20) this.player.x -= this.player.speed;
+        if (this.keys.get('ArrowRight') && this.player.x < 780) this.player.x += this.player.speed;        
+        // Weapon switching
+        if (this.keys.get('1')) this.player.setWeapon(new SingleShot());
+        if (this.keys.get('2')) this.player.setWeapon(new SpreadShot());
+        if (this.keys.get('3')) this.player.setWeapon(new RapidFire());        
+        // Shooting
+        if (this.keys.get(' ')) this.player.weapon.shoot(this.player.x, this.player.y, this.player.bullets, timestamp);
+        // Update game objects
+        this.player.bullets.forEach(bullet => bullet.update());
+        this.enemies.forEach(enemy => enemy.update());
+        this.spawnEnemy(timestamp);
+        this.checkCollisions();
+        this.player.bullets = this.player.bullets.filter(b => b.active);
+        this.enemies = this.enemies.filter(e => e.active);
+    }
+    draw() {
+        this.ctx.fillStyle = '#000022';
+        this.ctx.fillRect(0, 0, 800, 600);   
+        if (this.player.active) this.player.draw(this.ctx);
+        this.player.bullets.forEach(bullet => bullet.draw(this.ctx));
+        this.enemies.forEach(enemy => enemy.draw(this.ctx));
+    }
+    gameLoop(timestamp) {
+        if (!this.isRunning) return;
+        try {
+            this.update(timestamp || 0);
+            this.draw();
+            requestAnimationFrame((ts) => this.gameLoop(ts));
+        } catch (error) {
+            console.error('Game Error:', error);
+            this.isRunning = false;
+            alert('Game crashed: ' + error.message + '\nPlease refresh to restart.');
+        }
+    }
+    start() {
+        if (!this.isRunning) {
+            this.isRunning = true;
+            requestAnimationFrame((ts) => this.gameLoop(ts));
+        }
+    }
+}
+try {
+    const game = new SpaceShooter();
+    game.start();
+} catch (error) {
+    console.error('Initialization Error:', error);
+    alert('Failed to start game: ' + error.message);
+}
+</script>
+</body>
+</html>
