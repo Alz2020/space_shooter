@@ -1,39 +1,28 @@
-/* Game canvas styling */
 canvas {
     border: 1px solid black;
-    background: #000022; /* Dark blue background for space theme */
+    background: #000022; 
 }
-
-/* Main game container */
 #game-container {
     text-align: center;
     font-family: Arial, sans-serif;
     color: white;
-    background: #000011; /* Slightly darker blue for contrast */
+    background: #000011; 
     padding: 20px;
 }
-
-/* Score display */
 #score {
     margin: 10px;
     font-size: 24px;
 }
-
-/* Controls text */
 #controls {
     margin-top: 10px;
     font-size: 16px;
 }
-
-/* UML diagram container */
 .mermaid {
     margin-top: 20px;
-    background: #ffffff; /* White background for diagram readability */
+    background: #ffffff; 
     padding: 10px;
-    border: 1px solid #cccccc; /* Light gray border for definition */
+    border: 1px solid #cccccc; 
 }
-
-/* Heading for UML section */
 h2 {
     font-size: 28px;
     margin-top: 20px;
